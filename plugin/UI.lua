@@ -137,13 +137,13 @@ function UI.build(widget: DockWidgetPluginGui): {
 	label(sectionRow, "ACTIVITY", UDim2.new(0,80,1,0), UDim2.fromOffset(0,0),
 		C.subtext, 9, Enum.Font.GothamBold)
 
-	local counterTxt = label(sectionRow, "0 ops", UDim2.new(1,0,1,0), UDim2.fromOffset(0,0),
+	local counterTxt = label(sectionRow, "0 ops", UDim2.new(1, -58, 1, 0), UDim2.fromOffset(0, 0),
 		C.subtext, 9, Enum.Font.Gotham, Enum.TextXAlignment.Right)
 
 	-- Clear button
 	local clearBtn = Instance.new("TextButton")
-	clearBtn.Size = UDim2.new(0, 40, 1, -4)
-	clearBtn.Position = UDim2.new(1, -50, 0, 2)
+	clearBtn.Size = UDim2.new(0, 44, 1, -4)
+	clearBtn.Position = UDim2.new(1, -54, 0, 2)
 	clearBtn.BackgroundColor3 = C.badge
 	clearBtn.BorderSizePixel = 0
 	clearBtn.Text = "Clear"
@@ -260,7 +260,7 @@ function UI.build(widget: DockWidgetPluginGui): {
 			if isSystem then
 				icon = fc("─", C.subtext)
 				nameColor = C.subtext
-				right = fc("sys", C.subtext)
+				right = ""
 			elseif ok then
 				icon = fc("✓", C.green)
 				nameColor = C.text
@@ -275,8 +275,9 @@ function UI.build(widget: DockWidgetPluginGui): {
 				opCount += 1
 			end
 
+			local ts = fc(os.date("%H:%M") :: string, C.subtext)
 			local namePart = ('<font color="%s">%s</font>'):format(hex(nameColor), tool)
-			addEntryRow(icon .. "  " .. namePart .. "  " .. right)
+			addEntryRow(ts .. "  " .. icon .. "  " .. namePart .. "  " .. right)
 			counterTxt.Text = opCount .. " ops"
 		end,
 

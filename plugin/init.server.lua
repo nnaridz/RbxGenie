@@ -3,7 +3,9 @@ local Bridge = require(script.Bridge)
 local UI = require(script.UI)
 
 local HttpService = game:GetService("HttpService")
-local HEALTH_URL = "http://127.0.0.1:7766/health"
+local RunService  = game:GetService("RunService")
+
+local HEALTH_URL     = "http://127.0.0.1:7766/health"
 local RETRY_INTERVAL = 3
 
 local widgetInfo = DockWidgetPluginGuiInfo.new(
@@ -17,7 +19,7 @@ widget.Title = "RbxGenie"
 local ui = UI.build(widget)
 
 -- Toolbar
-local toolbar = plugin:CreateToolbar("RbxGenie")
+local toolbar  = plugin:CreateToolbar("RbxGenie")
 local toggleBtn = toolbar:CreateButton("RbxGenie", "Toggle RbxGenie panel", "rbxassetid://14978048685")
 toggleBtn.ClickableWhenViewportHidden = true
 
@@ -31,8 +33,9 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 
 -- State
-local isConnected = false
+local isConnected  = false
 local bridgeRunning = false
+local isPaused     = false   -- true while Studio is in play mode
 
 local function tryConnect(): boolean
 	local ok, res = pcall(function()
@@ -45,7 +48,6 @@ local function startBridge()
 	if bridgeRunning then return end
 	bridgeRunning = true
 
-	-- Wire UI callbacks onto Bridge
 	Bridge.onCommandStart = function(tool: string, _args: any)
 		ui.setActive(tool)
 	end
@@ -62,12 +64,44 @@ local function startBridge()
 	Bridge.startLoop()
 end
 
--- Infinite connection loop
+-- ── Play mode detection ────────────────────────────────────────────────────────
+-- RunService:IsRunning() is true during Play Solo or Run. Poll every 0.5s to
+-- detect transitions without an explicit signal.
+task.spawn(function()
+	local wasRunning = false
+	while true do
+		local running = RunService:IsRunning()
+		if running and not wasRunning then
+			-- Entered play mode
+			wasRunning = true
+			isPaused = true
+			ui.setActive(nil)
+			ui.setStatus(false)
+			ui.addEntry("⏸ Play mode — paused", true, nil, true)
+		elseif not running and wasRunning then
+			-- Exited play mode
+			wasRunning = false
+			isPaused = false
+			ui.addEntry("▶ Play mode ended — resuming", true, nil, true)
+			-- Don't force reconnect here; the main loop will pick it up next cycle
+		end
+		task.wait(0.5)
+	end
+end)
+
+-- ── Main connection loop ───────────────────────────────────────────────────────
 task.spawn(function()
 	ui.setStatus(false)
 
 	while true do
-		if not widget.Enabled and not isConnected then
+		-- Deep sleep: widget closed, not connected, not playing
+		if not widget.Enabled and not isConnected and not isPaused then
+			task.wait(RETRY_INTERVAL)
+			continue
+		end
+
+		-- Pause while in play mode
+		if isPaused then
 			task.wait(RETRY_INTERVAL)
 			continue
 		end
@@ -93,7 +127,7 @@ end)
 
 -- On widget open while disconnected: immediate check
 widget:GetPropertyChangedSignal("Enabled"):Connect(function()
-	if widget.Enabled and not isConnected then
+	if widget.Enabled and not isConnected and not isPaused then
 		task.spawn(function()
 			if tryConnect() then
 				isConnected = true

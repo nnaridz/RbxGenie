@@ -6,7 +6,6 @@ local AttributeTools = require(script.Parent.tools.AttributeTools)
 local TagTools       = require(script.Parent.tools.TagTools)
 local SelectionTools = require(script.Parent.tools.SelectionTools)
 local ExecuteTools   = require(script.Parent.tools.ExecuteTools)
-local PlaytestTools  = require(script.Parent.tools.PlaytestTools)
 
 local Executor = {}
 
@@ -63,11 +62,6 @@ local DISPATCH: { [string]: (args: any) -> any } = {
 
 	-- Execute
 	execute_luau                = ExecuteTools.execute_luau,
-
-	-- Playtest
-	start_playtest              = PlaytestTools.start_playtest,
-	stop_playtest               = PlaytestTools.stop_playtest,
-	get_playtest_output         = PlaytestTools.get_playtest_output,
 }
 
 function Executor.dispatch(tool: string, args: any): (any, string?)

@@ -70,7 +70,6 @@ Response:
 | **Tags** | `get_tags`, `add_tag`, `remove_tag`, `get_tagged` |
 | **Selection** | `get_selection` |
 | **Execute** | `execute_luau` |
-| **Playtest** | `start_playtest`, `stop_playtest`, `get_playtest_output` |
 
 ---
 
@@ -181,5 +180,4 @@ RbxGenie/
         ├── TagTools.lua
         ├── SelectionTools.lua
         ├── ExecuteTools.lua
-        └── PlaytestTools.lua
 ```

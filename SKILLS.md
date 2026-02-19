@@ -404,28 +404,6 @@ Execute arbitrary Lua code in Studio context. Return value is serialized.
 
 ---
 
-### 🎮 Playtest
-
-#### `start_playtest`
-Start a playtest session and begin capturing output.
-```json
-{}
-```
-
-#### `stop_playtest`
-Stop the current playtest.
-```json
-{}
-```
-
-#### `get_playtest_output`
-Get captured log output. Optionally clear buffer.
-```json
-{ "clear": true }
-```
-Returns: `{ output: [{ level, message, time }], count: N }`
-
----
 
 ## Common Workflows
 
