@@ -92,7 +92,7 @@ function Bridge.startLoop()
 			postResult(id, result, nil)
 		end
 
-		task.wait(0.01)
+		task.wait(0.1)
 	end
 end
 

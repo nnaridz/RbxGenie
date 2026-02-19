@@ -331,33 +331,49 @@ function InstanceTools.summarize_game(_args: {}): any
 	local totalScripts = 0
 	local totalInstances = 0
 
-	local function countAll(inst: Instance): (number, number)
+	local MAX_PER_SERVICE = 50000
+	local YIELD_INTERVAL = 5000
+
+	local function countAll(inst: Instance): (number, number, boolean)
+		local descendants = inst:GetDescendants()
 		local instances = 0
 		local scripts = 0
-		for _, child in ipairs(inst:GetDescendants()) do
+		local capped = #descendants > MAX_PER_SERVICE
+
+		local limit = math.min(#descendants, MAX_PER_SERVICE)
+		for i = 1, limit do
 			instances += 1
-			if SCRIPT_CLASSES[child.ClassName] then
+			if SCRIPT_CLASSES[descendants[i].ClassName] then
 				scripts += 1
 			end
+			if i % YIELD_INTERVAL == 0 then
+				task.wait()
+			end
 		end
-		return instances, scripts
+		return instances, scripts, capped
 	end
 
 	for _, svc in ipairs(game:GetChildren()) do
 		local directChildren = #svc:GetChildren()
-		if not KNOWN_SERVICES[svc.Name] and directChildren == 0 then
+		if not KNOWN_SERVICES[svc.Name] then
 			continue
 		end
-		local inst_count, script_count = countAll(svc)
+		local inst_count, script_count, capped = countAll(svc)
 		totalScripts += script_count
 		totalInstances += inst_count + 1
-		table.insert(services, {
+
+		local entry: { [string]: any } = {
 			name = svc.Name,
 			className = svc.ClassName,
 			directChildren = directChildren,
 			totalDescendants = inst_count,
 			scripts = script_count,
-		})
+		}
+		if capped then
+			entry.capped = true
+			entry.note = "Descendant count capped at " .. MAX_PER_SERVICE
+		end
+		table.insert(services, entry)
 	end
 
 	return {

@@ -1,7 +1,7 @@
 import { PendingCommand, PollResponse } from "./types";
 
 const queue: PendingCommand[] = [];
-const COMMAND_TIMEOUT_MS = 30_000;
+const COMMAND_TIMEOUT_MS = 120_000;
 
 export function enqueue(
     id: string,
