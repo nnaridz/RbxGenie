@@ -11,6 +11,7 @@ local Executor = {}
 
 local DISPATCH: { [string]: (args: any) -> any } = {
 	-- Instance / Info
+	summarize_game              = InstanceTools.summarize_game,
 	get_file_tree               = InstanceTools.get_file_tree,
 	search_files                = InstanceTools.search_files,
 	get_place_info              = InstanceTools.get_place_info,

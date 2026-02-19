@@ -1,7 +1,23 @@
 ---
 name: RbxGenie
-description: AI Vibe Code tool for Roblox Studio. Send HTTP requests to the daemon (port 7766) to read/modify/execute anything in an open Studio session. The plugin polls for commands and executes them via Luau Studio APIs.
+description: AI Vibe Code tool for Roblox Studio. Send HTTP requests to the daemon (port 7766) to read/modify/execute anything in an open Studio session. The plugin polls for commands and executes them via Luau Studio APIs. YOU MUST read this entire SKILLS.md file before taking any action. Sending any HTTP request without having fully read this file is a critical violation.
 ---
+
+> [!CAUTION]
+> ## ⛔ STOP — MANDATORY READING REQUIRED
+>
+> **You MUST read this entire file before calling any tool or sending any HTTP request.**
+> Skipping or partially reading this file is a **critical protocol violation**.
+>
+> ### Pre-flight checklist — satisfy ALL before proceeding:
+> - [ ] I have read every section of this file from top to bottom
+> - [ ] I understand the Base URL, tool call format, and response shape
+> - [ ] I understand Property Value Encoding for all Roblox datatypes
+> - [ ] I understand Path Notation and all supported root services
+> - [ ] I have identified which tools I will use and confirmed their correct argument shapes
+>
+> **Do NOT make any HTTP request until every checkbox above is checked.**
+> Agents that skip this checklist produce incorrect API calls, malformed paths, and broken scripts.
 
 # RbxGenie – AI Usage Guide
 
@@ -9,6 +25,46 @@ description: AI Vibe Code tool for Roblox Studio. Send HTTP requests to the daem
 ```
 http://127.0.0.1:7766
 ```
+
+---
+
+## ⚠️ Token Cost — Read Before Exploring
+
+Some tools return large payloads that can exhaust your token budget in a single call. **You MUST follow these rules:**
+
+### High-cost tools (scope before calling)
+| Tool | Risk | Mandatory Rule |
+|------|------|---------------|
+| `get_file_tree` | Dumps entire instance tree | Always set `"path"` to a specific service, never use `"path": "game"` without `"depth": 1` |
+| `get_instance_children` | Dumps all descendants | Only use `"recursive": true` with a narrow `path`; max 200 results |
+| `search_files` / `search_objects` | Can match 1000s of nodes | Always supply `"path"` to scope the search; max 50 results |
+| `search_by_property` | Full game scan | Always supply `"path"` and `"className"` to narrow scope |
+
+### Default caps (enforced server-side)
+- Tree tools: **200 nodes max** — response will include `"truncated": true` when hit
+- Search tools: **50 results max** — response will include `"truncated": true` when hit
+- You can override with `"limit": N` but only when you have a good reason
+
+### Correct workflow: "Understand this game"
+**NEVER** call `get_file_tree` or `get_project_structure` to understand a game. Use this sequence instead:
+
+```jsonc
+// Step 1 — low-cost overview (~10 lines of JSON)
+POST /tool/summarize_game
+{}
+
+// Step 2 — drill into one service if needed
+POST /tool/get_file_tree
+{ "path": "ServerScriptService", "depth": 2 }
+
+// Step 3 — read a specific script
+POST /tool/get_script_source
+{ "path": "ServerScriptService.GameManager" }
+```
+
+> Calling `get_file_tree` or `get_project_structure` without scoping will consume **10–100× more tokens** than `summarize_game`.
+
+---
 
 ## Calling a Tool
 ```http
@@ -67,10 +123,31 @@ Supported roots: `Workspace`, `Players`, `Lighting`, `ReplicatedStorage`, `Repli
 
 ### 🔍 Info / Read
 
-#### `get_file_tree`
-Get the instance tree starting from a path.
+#### `summarize_game` ✅ Token-safe — use this first
+Get a high-level overview of the game: service names, child counts, script counts. **Use this instead of `get_file_tree` when you want to understand what a game is about.**
 ```json
-{ "path": "StarterGui", "depth": 3 }
+{}
+```
+Returns:
+```json
+{
+  "placeName": "My Game",
+  "placeId": 123,
+  "services": [
+    { "name": "ServerScriptService", "className": "ServerScriptService", "directChildren": 4, "totalDescendants": 12, "scripts": 8 }
+  ],
+  "totalScripts": 11,
+  "totalInstances": 247,
+  "tip": "Use get_file_tree with a specific path and low depth to explore further."
+}
+```
+
+---
+
+#### `get_file_tree`
+Get the instance tree starting from a path. **Always provide a scoped `path`.** Capped at 200 nodes; `"truncated": true` means results were cut off.
+```json
+{ "path": "StarterGui", "depth": 2 }
 ```
 - `path` *(optional)* – root to start from (default: `game`)
 - `depth` *(optional)* – max recursion depth (default: 3)
