@@ -290,6 +290,42 @@ function InstanceTools.get_class_info(args: { className: string }): any
 	return { className = args.className, properties = props }
 end
 
+local KNOWN_SERVICES = {
+	Workspace = true,
+	Players = true,
+	Lighting = true,
+	ReplicatedFirst = true,
+	ReplicatedStorage = true,
+	ServerScriptService = true,
+	ServerStorage = true,
+	StarterGui = true,
+	StarterPack = true,
+	StarterPlayer = true,
+	Teams = true,
+	SoundService = true,
+	Chat = true,
+	TextChatService = true,
+	MaterialService = true,
+	CollectionService = true,
+	RunService = true,
+	TweenService = true,
+	UserInputService = true,
+	ProximityPromptService = true,
+	PathfindingService = true,
+	PhysicsService = true,
+	HttpService = true,
+	DataStoreService = true,
+	MessagingService = true,
+	TeleportService = true,
+	BadgeService = true,
+	MarketplaceService = true,
+	GroupService = true,
+	LocalizationService = true,
+	AnalyticsService = true,
+	VoiceChatService = true,
+	AvatarEditorService = true,
+}
+
 function InstanceTools.summarize_game(_args: {}): any
 	local services = {}
 	local totalScripts = 0
@@ -308,13 +344,17 @@ function InstanceTools.summarize_game(_args: {}): any
 	end
 
 	for _, svc in ipairs(game:GetChildren()) do
+		local directChildren = #svc:GetChildren()
+		if not KNOWN_SERVICES[svc.Name] and directChildren == 0 then
+			continue
+		end
 		local inst_count, script_count = countAll(svc)
 		totalScripts += script_count
 		totalInstances += inst_count + 1
 		table.insert(services, {
 			name = svc.Name,
 			className = svc.ClassName,
-			directChildren = #svc:GetChildren(),
+			directChildren = directChildren,
 			totalDescendants = inst_count,
 			scripts = script_count,
 		})
