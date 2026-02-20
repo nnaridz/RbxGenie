@@ -5,6 +5,17 @@ import { enqueue, dequeue, resolveCommand, rejectCommand, queueEvents } from "./
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 
+app.use((err: any, _req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err.type === "entity.parse.failed") {
+        res.status(400).json({
+            ok: false,
+            error: `Invalid JSON body: ${err.message}`,
+        });
+        return;
+    }
+    next(err);
+});
+
 const PORT = process.env.PORT ? parseInt(process.env.PORT) : 7766;
 const LONG_POLL_TIMEOUT_MS = 15_000;
 

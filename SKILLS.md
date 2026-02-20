@@ -24,7 +24,7 @@ Content-Type: application/json
 
 ## Token Cost Rules
 
-**ALWAYS call `summarize_game` first** to understand a game. NEVER call `get_file_tree` or `get_project_structure` without a scoped `path`.
+Call `summarize_game` **ONCE per session** if you have no prior context about the game. Do NOT call it again if you already have the result in context. NEVER call `get_file_tree` or `get_project_structure` without a scoped `path`.
 
 | Tool | Rule |
 |------|------|
