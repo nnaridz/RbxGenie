@@ -1,9 +1,27 @@
 local HttpService = game:GetService("HttpService")
+local ChangeHistoryService = game:GetService("ChangeHistoryService")
 local Executor = require(script.Parent.Executor)
 
 local DAEMON_URL = "http://127.0.0.1:7766"
 local POLL_ENDPOINT = DAEMON_URL .. "/poll"
 local RESULT_ENDPOINT = DAEMON_URL .. "/result"
+
+local BACKOFF_INITIAL = 2
+local BACKOFF_MAX = 30
+local BACKOFF_FACTOR = 1.5
+
+local READ_ONLY_TOOLS = {
+	get_file_tree = true, search_files = true, get_place_info = true,
+	get_services = true, search_objects = true, get_instance_properties = true,
+	get_instance_children = true, search_by_property = true, get_class_info = true,
+	get_project_structure = true, summarize_game = true,
+	mass_get_property = true,
+	get_script_source = true,
+	get_attribute = true, get_attributes = true,
+	get_tags = true, get_tagged = true,
+	get_selection = true,
+	get_console_output = true, get_studio_mode = true,
+}
 
 local Bridge = {}
 Bridge.onStatus       = nil :: ((msg: string) -> ())?
@@ -56,14 +74,19 @@ local function postResult(id: string, result: any?, err: string?)
 end
 
 function Bridge.startLoop()
+	local backoff = BACKOFF_INITIAL
+
 	while true do
 		local ok, body = httpGet(POLL_ENDPOINT)
 
 		if not ok then
-			log("[Bridge] Poll failed: " .. body .. " — retrying in 2s")
-			task.wait(2)
+			log("[Bridge] Poll failed: " .. body .. " — retry in " .. math.round(backoff) .. "s")
+			task.wait(backoff)
+			backoff = math.min(backoff * BACKOFF_FACTOR + math.random() * 0.5, BACKOFF_MAX)
 			continue
 		end
+
+		backoff = BACKOFF_INITIAL
 
 		local decoded: { hasCommand: boolean, id: string?, tool: string?, args: any? }?
 		decoded = HttpService:JSONDecode(body)
@@ -80,9 +103,18 @@ function Bridge.startLoop()
 		log("[Bridge] Received: " .. tool .. " (" .. id:sub(1, 8) .. ")")
 		if Bridge.onCommandStart then Bridge.onCommandStart(tool, args) end
 
+		local recording = nil
+		if not READ_ONLY_TOOLS[tool] then
+			recording = ChangeHistoryService:TryBeginRecording("RbxGenie: " .. tool)
+		end
+
 		local t0 = os.clock()
 		local result, err = Executor.dispatch(tool, args)
 		local elapsedMs = math.round((os.clock() - t0) * 1000)
+
+		if recording then
+			ChangeHistoryService:FinishRecording(recording, Enum.FinishRecordingOperation.Commit)
+		end
 
 		if Bridge.onCommandEnd then Bridge.onCommandEnd(tool, err == nil, elapsedMs) end
 

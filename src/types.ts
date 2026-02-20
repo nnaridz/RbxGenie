@@ -15,8 +15,9 @@ export interface PendingCommand {
     tool: string;
     args: Record<string, unknown>;
     resolve: (value: unknown) => void;
-    reject: (reason: string) => void;
+    reject: (reason: any) => void;
     timer: NodeJS.Timeout;
+    _dispatched?: boolean;
 }
 
 export interface PollResponse {

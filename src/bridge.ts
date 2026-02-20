@@ -1,7 +1,10 @@
+import { EventEmitter } from "events";
 import { PendingCommand, PollResponse } from "./types";
 
 const queue: PendingCommand[] = [];
 const COMMAND_TIMEOUT_MS = 120_000;
+
+export const queueEvents = new EventEmitter();
 
 export function enqueue(
     id: string,
@@ -12,10 +15,15 @@ export function enqueue(
         const timer = setTimeout(() => {
             const idx = queue.findIndex((c) => c.id === id);
             if (idx !== -1) queue.splice(idx, 1);
-            reject(`Command ${id} timed out after ${COMMAND_TIMEOUT_MS}ms`);
+            reject({
+                error: `Command ${id} timed out after ${COMMAND_TIMEOUT_MS}ms`,
+                timeout: true,
+                timeoutMs: COMMAND_TIMEOUT_MS,
+            });
         }, COMMAND_TIMEOUT_MS);
 
         queue.push({ id, tool, args, resolve, reject, timer });
+        queueEvents.emit("enqueued");
     });
 }
 

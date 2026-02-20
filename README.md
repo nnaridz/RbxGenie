@@ -1,6 +1,6 @@
 # RbxGenie
 
-AI Vibe Code tool for Roblox Studio — daemon + plugin architecture.
+AI Vibe Code tool for Roblox Studio — daemon + plugin architecture with MCP support.
 
 ## Quick Start
 
@@ -14,29 +14,40 @@ npm run dev
 
 Daemon starts on `http://127.0.0.1:7766`.
 
-### 2. Build & Install Plugin (single file)
+### 2. Build & Install Plugin
 
-```powershell
-# Build the bundled plugin lua file
-npm run bundle
-
-# Then copy to Roblox Plugins folder (run as one command):
-copy dist\RbxGenie.plugin.lua "%LOCALAPPDATA%\Roblox\Plugins\RbxGenie.lua"
-```
-
-Or do both in one step:
 ```powershell
 npm run bundle:install
 ```
 
-> **Why a bundle?** Roblox cloud-published plugins load all files as `Script` instances,
-> which breaks `require()`. The bundler merges everything into one self-contained `.lua` file
-> using an `_M[]` module table, which works in any context.
+### 3. MCP Mode (Claude Desktop / Cursor)
 
-### 3. Open Roblox Studio
+The daemon must be running first (`npm run dev`), then:
+
+```powershell
+npm run build
+npm run install-mcp
+```
+
+This auto-configures Claude Desktop and Cursor to use RbxGenie as an MCP server.
+
+**Manual MCP config:**
+```json
+{
+  "mcpServers": {
+    "RbxGenie": {
+      "command": "node",
+      "args": ["E:/[Tools]/[Roblox_Tools]/RbxGenie/dist/mcp.js"]
+    }
+  }
+}
+```
+
+### 4. Open Roblox Studio
 
 - A **RbxGenie** toolbar button appears → click to open the dock widget.
 - Status indicator turns **green** once the daemon is reachable.
+- All AI changes are **undoable** via Ctrl+Z (ChangeHistoryService).
 
 ---
 
@@ -58,18 +69,20 @@ Response:
 
 ---
 
-## Available Tools (45)
+## Available Tools (53)
 
 | Group | Tools |
 |-------|-------|
-| **Info/Read** | `get_file_tree`, `search_files`, `get_place_info`, `get_services`, `search_objects`, `get_instance_properties`, `get_instance_children`, `search_by_property`, `get_class_info`, `get_project_structure` |
+| **Info/Read** | `get_file_tree`, `search_files`, `get_place_info`, `get_services`, `search_objects`, `get_instance_properties`, `get_instance_children`, `search_by_property`, `get_class_info`, `get_project_structure`, `summarize_game` |
 | **Properties** | `set_property`, `mass_set_property`, `mass_get_property`, `set_calculated_property`, `set_relative_property` |
 | **Objects** | `create_object`, `create_object_with_properties`, `mass_create_objects`, `mass_create_objects_with_properties`, `delete_object`, `smart_duplicate`, `mass_duplicate` |
 | **Scripts** | `get_script_source`, `set_script_source`, `edit_script_lines`, `insert_script_lines`, `delete_script_lines` |
 | **Attributes** | `get_attribute`, `set_attribute`, `get_attributes`, `delete_attribute` |
 | **Tags** | `get_tags`, `add_tag`, `remove_tag`, `get_tagged` |
 | **Selection** | `get_selection` |
-| **Execute** | `execute_luau` |
+| **Execute** | `execute_luau`, `get_console_output`, `clear_console_output` |
+| **Playtest** | `start_play`, `stop_play`, `run_server`, `get_studio_mode`, `run_script_in_play_mode` |
+| **Marketplace** | `insert_model` |
 
 ---
 
@@ -90,68 +103,28 @@ Response:
 
 ---
 
-## Examples
-
-### Create a Part in Workspace
-```bash
-curl -X POST http://127.0.0.1:7766/tool/create_object_with_properties \
-  -H "Content-Type: application/json" \
-  -d '{
-    "path": "Workspace",
-    "className": "Part",
-    "properties": {
-      "Name": "TestPart",
-      "Position": {"type":"Vector3","value":[0,5,0]},
-      "BrickColor": {"type":"BrickColor","value":"Bright red"},
-      "Anchored": true
-    }
-  }'
-```
-
-### Create a ScreenGui
-```bash
-curl -X POST http://127.0.0.1:7766/tool/create_object_with_properties \
-  -H "Content-Type: application/json" \
-  -d '{
-    "path": "StarterGui",
-    "className": "ScreenGui",
-    "properties": { "Name": "MyGui", "ResetOnSpawn": false }
-  }'
-```
-
-### Read script source
-```bash
-curl -X POST http://127.0.0.1:7766/tool/get_script_source \
-  -H "Content-Type: application/json" \
-  -d '{"path": "ServerScriptService.MyScript"}'
-```
-
-### Execute Luau in Studio
-```bash
-curl -X POST http://127.0.0.1:7766/tool/execute_luau \
-  -H "Content-Type: application/json" \
-  -d '{"code": "return game.PlaceId"}'
-```
-
----
-
 ## Architecture
 
 ```
-AI Agent / curl
-   │  POST /tool/:name  {args}
-   ▼
-Daemon (Node.js :7766)
-   ├─ enqueue(id, tool, args) → Promise
+AI Agent / Claude Desktop / Cursor
    │
-   │  ← GET /poll (long-poll, up to 15s)
-   ▼
-Plugin (Roblox Studio)
-   ├─ Executor.dispatch(tool, args)
-   └─ POST /result  {id, result}
-   │
-   ▼
-Daemon resolves Promise → returns JSON to caller
+   ├─ MCP (stdio) ──→ mcp.ts ──→ REST proxy
+   │                                │
+   └─ POST /tool/:name ────────────┘
+                                    │
+                                    ▼
+                          Daemon (Node.js :7766)
+                             ├─ enqueue(id, tool, args) → Promise
+                             │
+                             │  ← GET /poll (event-driven, 15s timeout)
+                             ▼
+                          Plugin (Roblox Studio)
+                             ├─ Executor.dispatch(tool, args)
+                             ├─ ChangeHistoryService (undo support)
+                             └─ POST /result  {id, result}
+                             │
+                             ▼
+                          Daemon resolves Promise → returns JSON to caller
 ```
 
 ## File Structure
@@ -161,13 +134,17 @@ RbxGenie/
 ├── package.json
 ├── tsconfig.json
 ├── src/
-│   ├── server.ts        # Express HTTP server
-│   ├── bridge.ts        # Command queue + promise bridge
+│   ├── server.ts        # Express HTTP server (event-driven polling)
+│   ├── bridge.ts        # Command queue + EventEmitter bridge
+│   ├── mcp.ts           # MCP protocol server (stdio transport)
+│   ├── install.ts       # Auto-installer for Claude/Cursor
 │   └── types.ts         # TypeScript types
+├── scripts/
+│   └── bundle.js        # Plugin bundler
 └── plugin/
     ├── init.server.lua  # Bootstrap + toolbar + widget
-    ├── Bridge.lua       # HTTP long-poll loop
-    ├── Executor.lua     # Tool dispatch table
+    ├── Bridge.lua       # HTTP long-poll loop + ChangeHistoryService
+    ├── Executor.lua     # Tool dispatch table (53 tools)
     ├── UI.lua           # Dock widget UI
     ├── PathResolver.lua # "A.B.C" → Instance
     ├── ValueSerializer.lua  # JSON ↔ Roblox types
@@ -179,5 +156,7 @@ RbxGenie/
         ├── AttributeTools.lua
         ├── TagTools.lua
         ├── SelectionTools.lua
-        ├── ExecuteTools.lua
+        ├── ExecuteTools.lua      # execute_luau + console capture
+        ├── PlaytestTools.lua     # play/stop/run/mode/script-in-play
+        └── InsertModelTools.lua  # marketplace model insertion
 ```

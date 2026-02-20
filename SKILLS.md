@@ -1,6 +1,6 @@
 ---
 name: RbxGenie
-description: AI tool for Roblox Studio. HTTP requests to daemon (port 7766) to read/modify/execute in an open Studio session. MANDATORY — read this entire file before any action. No HTTP requests until fully read.
+description: AI tool for Roblox Studio (53 tools). HTTP requests to daemon (port 7766) to read/modify/execute in an open Studio session. MANDATORY — read this entire file before any action. No HTTP requests until fully read.
 ---
 
 > [!CAUTION]
@@ -20,6 +20,8 @@ Content-Type: application/json
 ```
 **Response:** `{ "ok": true, "id": "uuid", "result": { ... } }` or `{ "ok": false, "id": "uuid", "error": "message" }`
 
+**Timeout:** Commands time out after 120s. Timeout responses include `{ "timeout": true, "timeoutMs": 120000 }`.
+
 ## Token Cost Rules
 
 **ALWAYS call `summarize_game` first** to understand a game. NEVER call `get_file_tree` or `get_project_structure` without a scoped `path`.
@@ -30,6 +32,10 @@ Content-Type: application/json
 | `get_instance_children` | Only `"recursive": true` with narrow `path`; max 200 |
 | `search_files` / `search_objects` | Always supply `"path"`; max 50 |
 | `search_by_property` | Always supply `"path"` and `"className"` |
+
+## Undo Support
+
+All write operations are wrapped in `ChangeHistoryService`. Users can Ctrl+Z to undo any change.
 
 ## Property Value Encoding
 
@@ -242,7 +248,71 @@ Supported roots: `Workspace`, `Players`, `Lighting`, `ReplicatedStorage`, `Repli
 
 ### Execute
 
-**`execute_luau`** — Run arbitrary Lua in Studio. Return value is serialized.
+**`execute_luau`** — Run arbitrary Luau in Studio (edit mode). Captures `print()`, `warn()`, and `error()` output. Returns `{ ok, result, output }`. Userdata types (Vector3, CFrame, etc.) are auto-serialized via `tostring()`.
 ```json
-{ "code": "return game.PlaceId" }
+{ "code": "print('hello') return workspace:GetChildren()" }
 ```
+Response: `{ "ok": true, "result": [...], "output": ["[OUTPUT] hello"] }`
+
+**`get_console_output`** — Get captured Studio console output (LogService). Rolling buffer of last 500 messages with level and timestamp. Returns `{ ok, count, output: [{ level, message, ts }] }`.
+```json
+{}
+```
+
+**`clear_console_output`** — Clear the console output buffer.
+```json
+{}
+```
+
+### Playtest
+
+**`start_play`** — Start play mode. Studio must be in edit mode.
+```json
+{}
+```
+
+**`stop_play`** — Stop play/server mode. Returns to edit mode.
+```json
+{}
+```
+
+**`run_server`** — Start server mode (no local player). Studio must be in edit mode.
+```json
+{}
+```
+
+**`get_studio_mode`** — Get current Studio mode. Returns `{ ok, mode }` where mode is `"edit"`, `"play"`, or `"server"`.
+```json
+{}
+```
+
+**`run_script_in_play_mode`** — Inject test script → start play/server → capture all logs/errors/duration → auto-stop → return structured result. Use this to **test game logic** at runtime.
+```json
+{ "code": "print('test') return 42", "timeout": 30, "mode": "play" }
+```
+- `code` *(required)*: Luau code to execute inside play mode
+- `timeout` *(optional, default 100)*: Seconds before force-stop
+- `mode` *(optional, default "play")*: `"play"` or `"server"`
+
+Response:
+```json
+{
+  "success": true,
+  "value": "42",
+  "logs": [{ "level": "output", "message": "test", "ts": 0.001 }],
+  "errors": [],
+  "duration": 1.23,
+  "isTimeout": false
+}
+```
+
+### Marketplace
+
+**`insert_model`** — Search Roblox marketplace for free models and insert the top result into the game. Model is positioned at the camera center.
+```json
+{ "query": "tree", "parent": "Workspace" }
+```
+- `query` *(required)*: Search term for the marketplace
+- `parent` *(optional, default "Workspace")*: Dot-path where to parent the model
+
+Response: `{ "ok": true, "name": "Tree", "className": "Model", "assetId": 12345, "path": "Workspace.Tree" }`

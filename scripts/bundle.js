@@ -19,6 +19,7 @@ const MODULES = [
     { name: "tools.SelectionTools", file: "tools/SelectionTools.lua" },
     { name: "tools.ExecuteTools", file: "tools/ExecuteTools.lua" },
     { name: "tools.PlaytestTools", file: "tools/PlaytestTools.lua" },
+    { name: "tools.InsertModelTools", file: "tools/InsertModelTools.lua" },
     { name: "tools.ScriptTools", file: "tools/ScriptTools.lua" },
     { name: "tools.PropertyTools", file: "tools/PropertyTools.lua" },
     { name: "tools.ObjectTools", file: "tools/ObjectTools.lua" },
@@ -45,6 +46,7 @@ const REQUIRE_REPLACEMENTS = [
     [/require\(script\.Parent\.tools\.SelectionTools\)/g, '_M["tools.SelectionTools"]'],
     [/require\(script\.Parent\.tools\.ExecuteTools\)/g, '_M["tools.ExecuteTools"]'],
     [/require\(script\.Parent\.tools\.PlaytestTools\)/g, '_M["tools.PlaytestTools"]'],
+    [/require\(script\.Parent\.tools\.InsertModelTools\)/g, '_M["tools.InsertModelTools"]'],
 
     // From Bridge — sibling modules
     [/require\(script\.Parent\.Executor\)/g, '_M["Executor"]'],

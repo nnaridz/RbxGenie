@@ -1,11 +1,13 @@
-local InstanceTools  = require(script.Parent.tools.InstanceTools)
-local PropertyTools  = require(script.Parent.tools.PropertyTools)
-local ObjectTools    = require(script.Parent.tools.ObjectTools)
-local ScriptTools    = require(script.Parent.tools.ScriptTools)
-local AttributeTools = require(script.Parent.tools.AttributeTools)
-local TagTools       = require(script.Parent.tools.TagTools)
-local SelectionTools = require(script.Parent.tools.SelectionTools)
-local ExecuteTools   = require(script.Parent.tools.ExecuteTools)
+local InstanceTools     = require(script.Parent.tools.InstanceTools)
+local PropertyTools     = require(script.Parent.tools.PropertyTools)
+local ObjectTools       = require(script.Parent.tools.ObjectTools)
+local ScriptTools       = require(script.Parent.tools.ScriptTools)
+local AttributeTools    = require(script.Parent.tools.AttributeTools)
+local TagTools          = require(script.Parent.tools.TagTools)
+local SelectionTools    = require(script.Parent.tools.SelectionTools)
+local ExecuteTools      = require(script.Parent.tools.ExecuteTools)
+local PlaytestTools     = require(script.Parent.tools.PlaytestTools)
+local InsertModelTools  = require(script.Parent.tools.InsertModelTools)
 
 local Executor = {}
 
@@ -63,6 +65,18 @@ local DISPATCH: { [string]: (args: any) -> any } = {
 
 	-- Execute
 	execute_luau                = ExecuteTools.execute_luau,
+	get_console_output          = ExecuteTools.get_console_output,
+	clear_console_output        = ExecuteTools.clear_console_output,
+
+	-- Playtest
+	start_play                  = PlaytestTools.start_play,
+	stop_play                   = PlaytestTools.stop_play,
+	run_server                  = PlaytestTools.run_server,
+	get_studio_mode             = PlaytestTools.get_studio_mode,
+	run_script_in_play_mode     = PlaytestTools.run_script_in_play_mode,
+
+	-- Marketplace
+	insert_model                = InsertModelTools.insert_model,
 }
 
 function Executor.dispatch(tool: string, args: any): (any, string?)
