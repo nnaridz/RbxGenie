@@ -3,10 +3,9 @@ local Bridge = require(script.Bridge)
 local UI = require(script.UI)
 
 local HttpService = game:GetService("HttpService")
-local RunService  = game:GetService("RunService")
 
 local HEALTH_URL     = "http://127.0.0.1:7766/health"
-local RETRY_INTERVAL = 3
+local HEALTH_POLL    = 3
 
 local widgetInfo = DockWidgetPluginGuiInfo.new(
 	Enum.InitialDockState.Right,
@@ -33,9 +32,9 @@ widget:GetPropertyChangedSignal("Enabled"):Connect(function()
 end)
 
 -- State
-local isConnected  = false
-local bridgeRunning = false
-local isPaused     = false   -- true while Studio is in play mode
+local isConnected   = false
+local bridgeThread: thread? = nil
+local userWantsConnect = false
 
 local function tryConnect(): boolean
 	local ok, res = pcall(function()
@@ -45,8 +44,7 @@ local function tryConnect(): boolean
 end
 
 local function startBridge()
-	if bridgeRunning then return end
-	bridgeRunning = true
+	if bridgeThread then return end
 
 	Bridge.onCommandStart = function(tool: string, _args: any)
 		ui.setActive(tool)
@@ -61,51 +59,23 @@ local function startBridge()
 		ui.addEntry(msg, true, nil, true)
 	end
 
-	Bridge.startLoop()
+	bridgeThread = task.spawn(function()
+		Bridge.startLoop()
+	end)
 end
 
--- ── Play mode detection ────────────────────────────────────────────────────────
--- RunService:IsRunning() is true during Play Solo or Run. Poll every 0.5s to
--- detect transitions without an explicit signal.
-task.spawn(function()
-	local wasRunning = false
-	while true do
-		local running = RunService:IsRunning()
-		if running and not wasRunning then
-			-- Entered play mode
-			wasRunning = true
-			isPaused = true
-			ui.setActive(nil)
-			ui.setStatus(false)
-			ui.addEntry("⏸ Play mode — paused", true, nil, true)
-		elseif not running and wasRunning then
-			-- Exited play mode
-			wasRunning = false
-			isPaused = false
-			ui.addEntry("▶ Play mode ended — resuming", true, nil, true)
-			-- Don't force reconnect here; the main loop will pick it up next cycle
-		end
-		task.wait(0.5)
+local function stopBridge()
+	if bridgeThread then
+		task.cancel(bridgeThread)
+		bridgeThread = nil
 	end
-end)
-
--- ── Main connection loop ───────────────────────────────────────────────────────
-task.spawn(function()
+	isConnected = false
 	ui.setStatus(false)
+	ui.setActive(nil)
+end
 
-	while true do
-		-- Deep sleep: widget closed, not connected, not playing
-		if not widget.Enabled and not isConnected and not isPaused then
-			task.wait(RETRY_INTERVAL)
-			continue
-		end
-
-		-- Pause while in play mode
-		if isPaused then
-			task.wait(RETRY_INTERVAL)
-			continue
-		end
-
+local function connectionLoop()
+	while userWantsConnect do
 		local connected = tryConnect()
 
 		if connected and not isConnected then
@@ -115,26 +85,27 @@ task.spawn(function()
 			startBridge()
 		elseif not connected and isConnected then
 			isConnected = false
-			bridgeRunning = false
 			ui.setStatus(false)
 			ui.setActive(nil)
 			ui.addEntry("Connection lost", false, nil, true)
 		end
 
-		task.wait(RETRY_INTERVAL)
+		task.wait(HEALTH_POLL)
 	end
-end)
+end
 
--- On widget open while disconnected: immediate check
-widget:GetPropertyChangedSignal("Enabled"):Connect(function()
-	if widget.Enabled and not isConnected and not isPaused then
-		task.spawn(function()
-			if tryConnect() then
-				isConnected = true
-				ui.setStatus(true)
-				ui.addEntry("Connected ✓", true, nil, true)
-				startBridge()
-			end
-		end)
+-- Wire up the Start/Stop button
+ui.onConnectToggle = function(running: boolean)
+	userWantsConnect = running
+	ui.setConnectButton(running)
+
+	if running then
+		ui.addEntry("Connecting...", true, nil, true)
+		task.spawn(connectionLoop)
+	else
+		stopBridge()
+		ui.addEntry("Stopped", true, nil, true)
 	end
-end)
+end
+
+ui.setStatus(false)
