@@ -80,6 +80,7 @@ local LogService = game:GetService("LogService")
 local RunService = game:GetService("RunService")
 local StudioTestService = game:GetService("StudioTestService")
 
+if not game:IsLoaded() then game.Loaded:Wait() end
 if not RunService:IsRunning() then return end
 
 local logs = {}

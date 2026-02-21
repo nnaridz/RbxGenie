@@ -43,11 +43,12 @@ Only use `start_play`, `run_server`, or `run_script_in_play_mode` when:
 2. **Making a large / complex change** that affects runtime behavior across multiple scripts.
 3. **You keep hitting errors** and cannot figure out the root cause from code inspection alone.
 
-**When playtesting, ALWAYS wait for the game to load first.** Start every test script with:
+**When playtesting, ALWAYS wait for the game to load first** to prevent Studio freezing on rapid start/stop:
+- `run_script_in_play_mode` handles this **automatically** — do NOT add `game:IsLoaded()` to your test code.
+- If using `start_play` / `run_server` manually, add this at the top of any injected script:
 ```lua
 if not game:IsLoaded() then game.Loaded:Wait() end
 ```
-This prevents Studio from freezing when start/stop cycles happen in rapid succession.
 
 **Do NOT playtest when:**
 - Changing a single property, renaming, or tweaking values.
