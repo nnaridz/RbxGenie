@@ -24,6 +24,7 @@
     "@types/uuid": "^9.0.8",
     "ts-node-dev": "^2.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "@yao-pkg/pkg": "^6.5.0"
   }
 }

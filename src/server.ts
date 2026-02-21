@@ -1,6 +1,9 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
+import * as readline from "readline";
+import * as path from "path";
 import { enqueue, dequeue, resolveCommand, rejectCommand, queueEvents } from "./bridge";
+import { downloadSkillsContent } from "./skills-content";
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -101,6 +104,61 @@ app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "RbxGenie", port: PORT });
 });
 
-app.listen(PORT, "127.0.0.1", () => {
-    console.log(`[RbxGenie] Daemon listening on http://127.0.0.1:${PORT}`);
-});
+function startServer(): void {
+    app.listen(PORT, "127.0.0.1", () => {
+        console.log(`[RbxGenie] Daemon listening on http://127.0.0.1:${PORT}`);
+    });
+}
+
+async function createSkillsFile(dir: string): Promise<void> {
+    const dest = path.resolve(dir, "SKILLS.md");
+    try {
+        await downloadSkillsContent(dest);
+        console.log(`[RbxGenie] Created: ${dest}`);
+    } catch (err: any) {
+        console.error(`[RbxGenie] Failed to create SKILLS.md: ${err.message}`);
+    }
+}
+
+function showMenu(): void {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout,
+    });
+
+    const print = () => {
+        console.log("");
+        console.log("=== RbxGenie Daemon ===");
+        console.log("");
+        console.log("  1) Start Server");
+        console.log("  2) Create SKILLS.md");
+        console.log("  3) Exit");
+        console.log("");
+    };
+
+    const prompt = () => {
+        print();
+        rl.question("Choose: ", (answer) => {
+            const choice = answer.trim();
+            if (choice === "1") {
+                rl.close();
+                startServer();
+            } else if (choice === "2") {
+                rl.question("Path (default .): ", (p) => {
+                    const dir = p.trim() || ".";
+                    createSkillsFile(dir).then(() => prompt());
+                });
+            } else if (choice === "3") {
+                rl.close();
+                process.exit(0);
+            } else {
+                console.log("[RbxGenie] Invalid choice.");
+                prompt();
+            }
+        });
+    };
+
+    prompt();
+}
+
+showMenu();

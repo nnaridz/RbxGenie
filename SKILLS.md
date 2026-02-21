@@ -22,6 +22,33 @@ Content-Type: application/json
 
 **Timeout:** Commands time out after 120s. Timeout responses include `{ "timeout": true, "timeoutMs": 120000 }`.
 
+## Keep It Simple — No Overengineering
+
+> [!CAUTION]
+> **Do NOT overengineer.** Deliver exactly what was asked — nothing more.
+
+- If the request is simple, the solution must be simple.
+- Do not add extra abstractions, helper modules, config layers, or "future-proof" patterns unless explicitly requested.
+- Do not refactor surrounding code that wasn't part of the request.
+- Do not create unnecessary wrapper functions or utility modules.
+- Fewer lines is better. Ship the minimal correct solution.
+
+## Playtest Rules
+
+> [!IMPORTANT]
+> **Do NOT playtest for every change.** Playtesting is expensive and disruptive.
+
+Only use `start_play`, `run_server`, or `run_script_in_play_mode` when:
+1. **Building something from scratch** — a new system, feature, or major component.
+2. **Making a large / complex change** that affects runtime behavior across multiple scripts.
+3. **You keep hitting errors** and cannot figure out the root cause from code inspection alone.
+
+**Do NOT playtest when:**
+- Changing a single property, renaming, or tweaking values.
+- Editing a few lines of a script.
+- The change is purely structural (reparenting, reorganizing).
+- You are confident the change is correct from reading the code.
+
 ## Token Cost Rules
 
 Call `summarize_game` **ONCE per session** if you have no prior context about the game. Do NOT call it again if you already have the result in context. NEVER call `get_file_tree` or `get_project_structure` without a scoped `path`.
