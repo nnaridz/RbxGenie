@@ -19,7 +19,7 @@ local ui = UI.build(widget)
 
 -- Toolbar
 local toolbar  = plugin:CreateToolbar("RbxGenie")
-local toggleBtn = toolbar:CreateButton("RbxGenie", "Toggle RbxGenie panel", "rbxassetid://14978048685")
+local toggleBtn = toolbar:CreateButton("RbxGenie", "Toggle RbxGenie panel", "rbxassetid://91737251640951")
 toggleBtn.ClickableWhenViewportHidden = true
 
 toggleBtn.Click:Connect(function()

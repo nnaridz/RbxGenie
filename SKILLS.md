@@ -35,13 +35,16 @@ Content-Type: application/json
 
 ## Playtest Rules
 
-> [!IMPORTANT]
-> **Do NOT playtest for every change.** Playtesting is expensive and disruptive.
+> [!CAUTION]
+> **Playtesting is EXPENSIVE and PRONE TO FREEZING.** Do NOT playtest unless absolutely necessary.
 
 Only use `start_play`, `run_server`, or `run_script_in_play_mode` when:
 1. **Building something from scratch** — a new system, feature, or major component.
 2. **Making a large / complex change** that affects runtime behavior across multiple scripts.
 3. **You keep hitting errors** and cannot figure out the root cause from code inspection alone.
+
+**ANTI-FREEZE PROTOCOL (CRITICAL):**
+- **Timeouts:** ALWAYS specify a low `"timeout"` parameter (e.g., `30` seconds) when using `run_script_in_play_mode`.
 
 **Do NOT playtest when:**
 - Changing a single property, renaming, or tweaking values.
@@ -49,9 +52,13 @@ Only use `start_play`, `run_server`, or `run_script_in_play_mode` when:
 - The change is purely structural (reparenting, reorganizing).
 - You are confident the change is correct from reading the code.
 
-## Token Cost Rules
-
-Call `summarize_game` **ONCE per session** if you have no prior context about the game. Do NOT call it again if you already have the result in context. NEVER call `get_file_tree` or `get_project_structure` without a scoped `path`.
+## Token Cost & Anti-Tool Overuse Rules
+> [!WARNING]
+> **DO NOT OVERUSE TOOLS.** You are strictly penalized for unnecessary tool calls. Read code and think instead of using trial-and-error.
+1. **NO BLIND EXPLORATION:** Call `summarize_game` **ONCE per session** if you have no prior context. Do NOT call it again if you already have the result in context. NEVER call `get_file_tree` or `get_project_structure` without a scoped `path`.
+2. **NO RE-FETCHING:** If you already fetched a file or tree, rely on your context memory. Do not call info tools twice for the same data.
+3. **NO TRIAL-AND-ERROR:** Do not spam `execute_luau` or `run_script_in_play_mode` to guess how things work. Use `get_script_source` to read the code and figure it out.
+4. **USE BULK TOOLS:** Always use `mass_set_property`, `mass_create_objects`, etc., instead of making multiple individual calls.
 
 | Tool | Rule |
 |------|------|
