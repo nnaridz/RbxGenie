@@ -36,6 +36,8 @@ local isConnected   = false
 local bridgeThread: thread? = nil
 local userWantsConnect = false
 
+local SETTING_KEY = "RbxGenieAutoConnect"
+
 local function tryConnect(): boolean
 	local ok, res = pcall(function()
 		return HttpService:RequestAsync({ Url = HEALTH_URL, Method = "GET" })
@@ -94,10 +96,12 @@ local function connectionLoop()
 	end
 end
 
--- Wire up the Start/Stop button
-ui.onConnectToggle = function(running: boolean)
+local function setConnect(running: boolean)
 	userWantsConnect = running
 	ui.setConnectButton(running)
+	pcall(function()
+		plugin:SetSetting(SETTING_KEY, running)
+	end)
 
 	if running then
 		ui.addEntry("Connecting...", true, nil, true)
@@ -108,4 +112,21 @@ ui.onConnectToggle = function(running: boolean)
 	end
 end
 
+-- Wire up the Start/Stop button
+ui.onConnectToggle = function(running: boolean)
+	setConnect(running)
+end
+
 ui.setStatus(false)
+
+-- Auto-reconnect if previously connected (survives play mode transitions)
+task.defer(function()
+	local saved = false
+	pcall(function()
+		saved = plugin:GetSetting(SETTING_KEY) == true
+	end)
+	if saved then
+		setConnect(true)
+	end
+end)
+

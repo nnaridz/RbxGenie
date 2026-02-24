@@ -164,31 +164,68 @@ function PlaytestTools.run_script_in_play_mode(args: { code: string, timeout: nu
 	testScript.Parent = ServerScriptService
 
 	local runMode = args.mode or "play"
-	local ok2, result
-	if runMode == "server" then
-		ok2, result = pcall(function()
-			return StudioTestService:ExecuteRunModeAsync({})
+	local done = false
+	local playResult = nil
+	local playOk = false
+
+	local signal = Instance.new("BindableEvent")
+
+	task.spawn(function()
+		if runMode == "server" then
+			playOk, playResult = pcall(function()
+				return StudioTestService:ExecuteRunModeAsync({})
+			end)
+		else
+			playOk, playResult = pcall(function()
+				return StudioTestService:ExecutePlayModeAsync({})
+			end)
+		end
+		if not done then
+			done = true
+			signal:Fire()
+		end
+	end)
+
+	local watchdogFired = false
+	task.delay(timeout + 5, function()
+		if done then return end
+		watchdogFired = true
+		done = true
+		pcall(function()
+			if RunService:IsRunning() and StudioTestService then
+				(StudioTestService :: any):Stop()
+			end
 		end)
-	else
-		ok2, result = pcall(function()
-			return StudioTestService:ExecutePlayModeAsync({})
-		end)
-	end
+		task.wait(1)
+		signal:Fire()
+	end)
+
+	signal.Event:Wait()
+	signal:Destroy()
 
 	removeTestScript()
 
-	if not ok2 then
-		return { error = "Failed to run: " .. tostring(result) }
+	if watchdogFired then
+		return {
+			success = false,
+			error = "Timed out after " .. tostring(timeout) .. "s — force-stopped play mode",
+			isTimeout = true,
+			duration = timeout,
+		}
 	end
 
-	local ok3, encoded = pcall(function()
-		return HttpService:JSONEncode(result)
+	if not playOk then
+		return { error = "Failed to run: " .. tostring(playResult) }
+	end
+
+	local ok3, _ = pcall(function()
+		return HttpService:JSONEncode(playResult)
 	end)
 
 	if ok3 then
-		return result
+		return playResult
 	else
-		return { ok = true, raw = tostring(result) }
+		return { ok = true, raw = tostring(playResult) }
 	end
 end
 
